@@ -7,8 +7,8 @@ const anthropic = new Anthropic({
 async function fetchTransaction(signature) {
   const heliusKey = process.env.HELIUS_API_KEY;
 
-  // Use Helius enhanced API for parsed transaction data
-  const url = `https://api.helius.xyz/v0/transactions/?api-key=${heliusKey}`;
+  // Use Helius parse transaction API
+  const url = `https://api.helius.xyz/v0/transactions?api-key=${heliusKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -17,6 +17,13 @@ async function fetchTransaction(signature) {
   });
 
   if (!response.ok) {
+    // Try alternative: get raw transaction and parse
+    const altUrl = `https://api.helius.xyz/v0/parsed-transactions/${signature}?api-key=${heliusKey}`;
+    const altResponse = await fetch(altUrl);
+
+    if (altResponse.ok) {
+      return await altResponse.json();
+    }
     throw new Error('Failed to fetch transaction from Helius');
   }
 
