@@ -5,35 +5,34 @@ const anthropic = new Anthropic({
 });
 
 async function fetchTransaction(signature) {
-  const heliusKey = process.env.HELIUS_API_KEY;
+  // Use Solana public RPC
+  const rpcUrl = 'https://api.mainnet-beta.solana.com';
 
-  // Use Helius parse transaction API
-  const url = `https://api.helius.xyz/v0/transactions?api-key=${heliusKey}`;
-
-  const response = await fetch(url, {
+  const response = await fetch(rpcUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ transactions: [signature] }),
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getTransaction',
+      params: [
+        signature,
+        { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }
+      ],
+    }),
   });
 
   if (!response.ok) {
-    // Try alternative: get raw transaction and parse
-    const altUrl = `https://api.helius.xyz/v0/parsed-transactions/${signature}?api-key=${heliusKey}`;
-    const altResponse = await fetch(altUrl);
-
-    if (altResponse.ok) {
-      return await altResponse.json();
-    }
-    throw new Error('Failed to fetch transaction from Helius');
+    throw new Error('Failed to fetch transaction from Solana RPC');
   }
 
   const data = await response.json();
 
-  if (!data || data.length === 0) {
+  if (!data.result) {
     throw new Error('Transaction not found');
   }
 
-  return data[0];
+  return data.result;
 }
 
 async function translateTransaction(signature) {
@@ -60,9 +59,9 @@ async function translateTransaction(signature) {
   return {
     signature,
     explanation,
-    timestamp: txData.timestamp ? new Date(txData.timestamp * 1000).toISOString() : null,
-    type: txData.type || 'UNKNOWN',
-    fee: txData.fee ? (txData.fee / 1e9).toFixed(6) + ' SOL' : null,
+    timestamp: txData.blockTime ? new Date(txData.blockTime * 1000).toISOString() : null,
+    type: 'TRANSACTION',
+    fee: txData.meta?.fee ? (txData.meta.fee / 1e9).toFixed(6) + ' SOL' : null,
   };
 }
 
