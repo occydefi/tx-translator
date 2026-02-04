@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TX-Translator | Understand Solana Transactions</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding-top: 60px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00d4aa, #7b68ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 40px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+    }
+
+    input {
+      flex: 1;
+      padding: 16px 20px;
+      font-size: 14px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #0d0d1a;
+      color: #fff;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      border-color: #00d4aa;
+    }
+
+    input::placeholder {
+      color: #555;
+    }
+
+    button {
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #00d4aa, #7b68ee);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .result {
+      background: #0d0d1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 24px;
+      display: none;
+    }
+
+    .result.show {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #333;
+    }
+
+    .result-type {
+      background: #00d4aa22;
+      color: #00d4aa;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .result-fee {
+      color: #888;
+      font-size: 13px;
+    }
+
+    .explanation {
+      line-height: 1.7;
+      color: #ddd;
+    }
+
+    .explanation ul {
+      margin-left: 20px;
+      margin-top: 10px;
+    }
+
+    .explanation li {
+      margin-bottom: 8px;
+    }
+
+    .error {
+      background: #ff4d4d22;
+      border-color: #ff4d4d;
+      color: #ff6b6b;
+    }
+
+    .loading {
+      text-align: center;
+      color: #888;
+    }
+
+    .loading::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 60px;
+      color: #555;
+      font-size: 13px;
+    }
+
+    .footer a {
+      color: #00d4aa;
+      text-decoration: none;
+    }
+
+    .examples {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .examples span {
+      color: #555;
+      font-size: 13px;
+    }
+
+    .example-link {
+      color: #7b68ee;
+      cursor: pointer;
+      font-size: 13px;
+      margin-left: 8px;
+    }
+
+    .example-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TX-Translator</h1>
+    <p class="subtitle">Understand Solana transactions in plain English</p>
+
+    <div class="examples">
+      <span>Try an example:</span>
+      <span class="example-link" onclick="useExample()">Random swap transaction</span>
+    </div>
+
+    <div class="input-group">
+      <input
+        type="text"
+        id="signature"
+        placeholder="Paste transaction signature or Solscan URL..."
+        onkeypress="if(event.key==='Enter') translate()"
+      >
+      <button onclick="translate()" id="btn">Translate</button>
+    </div>
+
+    <div class="result" id="result">
+      <div class="result-header">
+        <span class="result-type" id="txType">-</span>
+        <span class="result-fee" id="txFee">-</span>
+      </div>
+      <div class="explanation" id="explanation"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Built by <a href="https://github.com/occydefi/tx-translator">TX-Translator Agent</a> for Colosseum Hackathon
+  </div>
+
+  <script>
+    const API_URL = '/api/translate';
+
+    async function translate() {
+      const input = document.getElementById('signature');
+      const btn = document.getElementById('btn');
+      const result = document.getElementById('result');
+      const explanation = document.getElementById('explanation');
+      const txType = document.getElementById('txType');
+      const txFee = document.getElementById('txFee');
+
+      const signature = input.value.trim();
+      if (!signature) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Translating...';
+      result.classList.add('show');
+      result.classList.remove('error');
+      explanation.innerHTML = '<p class="loading">Analyzing transaction</p>';
+      txType.textContent = '-';
+      txFee.textContent = '-';
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signature }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to translate');
+        }
+
+        txType.textContent = data.type || 'TRANSACTION';
+        txFee.textContent = data.fee ? `Fee: ${data.fee}` : '';
+        explanation.innerHTML = formatExplanation(data.explanation);
+      } catch (err) {
+        result.classList.add('error');
+        explanation.innerHTML = `<p>Error: ${err.message}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Translate';
+      }
+    }
+
+    function formatExplanation(text) {
+      // Convert markdown-style lists to HTML
+      return text
+        .replace(/\n/g, '<br>')
+        .replace(/- /g, '<br>• ')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function useExample() {
+      // Example Jupiter swap transaction
+      document.getElementById('signature').value = '4qMPBJpvQK7yCNqBNPkSZKhyCCBTUeMqQDjrJMvRLBBQDfBTzxbHKWKmEt5okdyvqJHxmSwCfXWN7DWYp2kmJBbT';
+      translate();
+    }
+  </script>
+</body>
+</html>
